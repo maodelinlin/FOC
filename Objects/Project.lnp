@@ -27,7 +27,7 @@
 ".\objects\stm32f10x_wwdg.o"
 ".\objects\delay.o"
 ".\objects\myi2c.o"
-".\objects\pwm.o"
+".\objects\usart.o"
 ".\objects\as5600.o"
 ".\objects\main.o"
 ".\objects\stm32f10x_it.o"
