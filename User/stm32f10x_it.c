@@ -23,6 +23,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
+#include "Delay.h"
 
 /** @addtogroup STM32F10x_StdPeriph_Template
   * @{
@@ -134,6 +135,8 @@ void PendSV_Handler(void)
   */
 void SysTick_Handler(void)
 {
+	extern volatile uint32_t systick_count;
+	systick_count++;
 }
 
 /******************************************************************************/

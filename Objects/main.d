@@ -29,5 +29,7 @@
 .\objects\main.o: .\Library\stm32f10x_wwdg.h
 .\objects\main.o: .\Library\misc.h
 .\objects\main.o: .\System\Delay.h
-.\objects\main.o: .\System\USART.h
+.\objects\main.o: .\Hardware\FOC.h
+.\objects\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 .\objects\main.o: .\Hardware\AS5600.h
+.\objects\main.o: .\System\USART.h

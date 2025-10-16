@@ -1,4 +1,19 @@
 #include "stm32f10x.h"
+#include "Delay.h"
+
+// SysTick计数器
+volatile uint32_t systick_count = 0;
+
+/**
+  * @brief  SysTick初始化
+  * @param  无
+  * @retval 无
+  */
+void Delay_Init(void)
+{
+	// 配置SysTick为1ms中断
+	SysTick_Config(SystemCoreClock / 1000);
+}
 
 /**
   * @brief  微秒级延时
@@ -38,4 +53,15 @@ void Delay_s(uint32_t xs)
 	{
 		Delay_ms(1000);
 	}
-} 
+}
+
+/**
+  * @brief  获取系统滴答计数
+  * @param  无
+  * @retval 系统滴答计数值（ms）
+  */
+uint32_t Delay_GetTick(void)
+{
+	return systick_count;
+}
+

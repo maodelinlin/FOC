@@ -1,158 +1,98 @@
 #include "stm32f10x.h"
 #include "Delay.h"
-#include "USART.h"
+#include "FOC.h"
 #include "AS5600.h"
+#include "USART.h"
 
 /**
-  * @brief  AS5600 功能验证程序
-  * @note   通过串口输出传感器数据，验证功能是否正常
+  * @brief  FOC智能车控制程序
+  * @note   实现开环FOC控制，无ADC电流采样
   */
 int main(void)
 {
-	AS5600_Data_t sensor_data;
-	uint8_t init_status;
-	uint32_t loop_count = 0;
-	
 	// ========== 初始化 ==========
 	
-	// 1. 初始化串口（115200波特率）
+	// 1. 初始化延时系统
+	Delay_Init();
+	
+	// 2. 初始化串口调试
 	USART1_Init(115200);
-	Delay_ms(100);  // 等待串口稳定
+	USART1_Printf("FOC System Starting...\r\n");
 	
-	// 2. 打印启动信息
-	USART1_SendString("\r\n");
-	USART1_SendString("========================================\r\n");
-	USART1_SendString("  AS5600 Magnetic Encoder Test v1.0\r\n");
-	USART1_SendString("  STM32F103C8 FOC Project\r\n");
-	USART1_SendString("========================================\r\n");
-	USART1_SendNewLine();
+	// 3. 初始化FOC系统
+	FOC_Init();
+	USART1_Printf("FOC System Initialized!\r\n");
 	
-	// 3. 初始化 AS5600
-	USART1_SendString("[INFO] Initializing AS5600...\r\n");
-	init_status = AS5600_Init();
-	
-	if(init_status == AS5600_OK)
-	{
-		USART1_SendString("[OK]   AS5600 initialized successfully!\r\n");
-	}
-	else
-	{
-		USART1_SendString("[ERROR] AS5600 initialization failed!\r\n");
-		USART1_SendString("[ERROR] Please check:\r\n");
-		USART1_SendString("        1. I2C connections (PB6=SCL, PB7=SDA)\r\n");
-		USART1_SendString("        2. Pull-up resistors (4.7k ohm)\r\n");
-		USART1_SendString("        3. Power supply (3.3V or 5V)\r\n");
-		USART1_SendString("        4. AS5600 chip is working\r\n");
-		USART1_SendNewLine();
-		USART1_SendString("System halted.\r\n");
-		while(1);  // 停止程序
+	// 4. 初始化AS5600位置传感器
+	if (AS5600_Init() != AS5600_OK) {
+		USART1_Printf("AS5600 Init Failed!\r\n");
+		while(1);
 	}
 	
-	// 4. 检测磁铁状态
-	USART1_SendString("[INFO] Checking magnet status...\r\n");
-	Delay_ms(100);
-	
-	uint8_t magnet_status = AS5600_CheckMagnetStatus();
-	
-	switch(magnet_status)
-	{
-		case AS5600_OK:
-			USART1_SendString("[OK]   Magnet detected and position is GOOD!\r\n");
-			break;
-			
-		case AS5600_NO_MAGNET:
-			USART1_SendString("[WARN] No magnet detected!\r\n");
-			USART1_SendString("[WARN] Please place a magnet above the sensor.\r\n");
-			break;
-			
-		case AS5600_MAG_WEAK:
-			USART1_SendString("[WARN] Magnet too WEAK (too far)!\r\n");
-			USART1_SendString("[WARN] Please move magnet closer to sensor.\r\n");
-			break;
-			
-		case AS5600_MAG_STRONG:
-			USART1_SendString("[WARN] Magnet too STRONG (too close)!\r\n");
-			USART1_SendString("[WARN] Please move magnet away from sensor.\r\n");
-			break;
-			
-		default:
-			USART1_SendString("[ERROR] Unknown magnet status!\r\n");
-			break;
+	// 检测AS5600连接
+	if (!AS5600_IsConnected()) {
+		USART1_Printf("AS5600 Not Connected!\r\n");
+		while(1);
 	}
 	
-	USART1_SendNewLine();
-	USART1_SendString("========================================\r\n");
-	USART1_SendString("  Starting continuous monitoring...\r\n");
-	USART1_SendString("  Update rate: 10Hz (every 100ms)\r\n");
-	USART1_SendString("========================================\r\n");
-	USART1_SendNewLine();
+	USART1_Printf("AS5600 Connected Successfully!\r\n");
 	
-	// 打印数据表头
-	USART1_SendString("Time(s) | Angle(raw) | Angle(deg) | Mag  | AGC | Status | Info\r\n");
-	USART1_SendString("--------|------------|------------|------|-----|--------|----------------\r\n");
+	// 5. 使能FOC控制
+	FOC_Enable();
+	USART1_Printf("FOC Control Enabled!\r\n");
 	
-	// ========== 主循环 ==========
+	// 6. 设置控制参数（先用低转速测试）
+	FOC_SetControl(100.0f, 0);  // 100RPM转速，正转
+	USART1_Printf("FOC Control Parameters Set: 100 RPM\r\n");
+	
+	USART1_Printf("System Ready! Starting FOC Control...\r\n\r\n");
+	
+	// ========== 主循环：FOC控制 ==========
+	uint32_t last_time = 0;
+	uint16_t angle = 0;
+	float speed_rpm = 0.0f;
+	
 	while(1)
 	{
-		// 读取所有传感器数据
-		if(AS5600_ReadAll(&sensor_data) == AS5600_OK)
+		uint32_t current_time = Delay_GetTick();
+		
+		// 1ms控制周期
+		if (current_time - last_time >= 1)
 		{
-			// 格式化输出数据（表格形式）
-			USART1_Printf("%7.1f | %10d | %10.2f | %4d | %3d | 0x%02X   | ",
-			             loop_count * 0.1f,           // 时间（秒）
-			             sensor_data.raw_angle,       // 原始角度
-			             sensor_data.angle_deg,       // 角度（度）
-			             sensor_data.magnitude,       // 磁场强度
-			             sensor_data.agc,             // AGC
-			             sensor_data.status);         // 状态
+			// 读取位置
+			AS5600_GetRawAngle(&angle);
 			
-			// 输出状态信息
-			if(sensor_data.error_code == AS5600_OK)
-			{
-				// 检查磁场强度范围
-				if(sensor_data.magnitude < 200)
-					USART1_SendString("Mag LOW");
-				else if(sensor_data.magnitude > 800)
-					USART1_SendString("Mag HIGH");
-				else if(sensor_data.magnitude >= 450 && sensor_data.magnitude <= 550)
-					USART1_SendString("PERFECT!");
-				else
-					USART1_SendString("OK");
-			}
-			else
-			{
-				USART1_SendString(AS5600_GetErrorString(sensor_data.error_code));
-			}
+			// 计算速度（简化版）
+			static uint16_t last_angle = 0;
+			int16_t angle_diff = AS5600_GetAngleDiff(angle, last_angle);
+			speed_rpm = (float)angle_diff * 60.0f * 1000.0f / 4096.0f;  // RPM
+			last_angle = angle;
 			
-			USART1_SendNewLine();
+			// FOC主控制循环
+			FOC_MainLoop(angle, speed_rpm);
 			
-			// 每10次输出后，打印一次详细诊断信息
-			if(loop_count % 100 == 0 && loop_count > 0)
-			{
-				USART1_SendNewLine();
-				USART1_SendString("--- Diagnostic Info ---\r\n");
-				USART1_Printf("Total rotations: Can be calculated from angle changes\r\n");
-				USART1_Printf("Magnet status bits: MD=%d ML=%d MH=%d\r\n",
-				             (sensor_data.status & 0x20) ? 1 : 0,  // MD
-				             (sensor_data.status & 0x10) ? 1 : 0,  // ML
-				             (sensor_data.status & 0x08) ? 1 : 0); // MH
-				USART1_Printf("Magnitude range: %s\r\n",
-				             (sensor_data.magnitude >= 100 && sensor_data.magnitude <= 900) 
-				             ? "GOOD (100-900)" : "OUT OF RANGE");
-				USART1_SendString("-----------------------\r\n");
-				USART1_SendNewLine();
-				
-				// 重新打印表头
-				USART1_SendString("Time(s) | Angle(raw) | Angle(deg) | Mag  | AGC | Status | Info\r\n");
-				USART1_SendString("--------|------------|------------|------|-----|--------|----------------\r\n");
-			}
-		}
-		else
-		{
-			USART1_SendString("[ERROR] Failed to read AS5600!\r\n");
+			// 更新计时
+			last_time = current_time;
 		}
 		
-		loop_count++;
-		Delay_ms(100);  // 100ms更新一次（10Hz）
+		// 串口输出调试信息（每100ms）
+		static uint32_t debug_time = 0;
+		if (current_time - debug_time >= 100)
+		{
+			FOC_Control_t* status = FOC_GetControlStatus();
+			
+			USART1_Printf("=== FOC Debug Info ===\r\n");
+			USART1_Printf("Angle: %d, Speed: %.1f RPM, Ref: %.1f RPM\r\n", 
+						   angle, speed_rpm, status->speed_ref);
+			USART1_Printf("Voltage: %.2f V, Enable: %d\r\n", 
+						   status->voltage_ref, status->enable);
+			USART1_Printf("PWM: A=%d, B=%d, C=%d\r\n", 
+						   status->pwm_a, status->pwm_b, status->pwm_c);
+			USART1_Printf("Theta: %.3f rad, Valpha: %.3f, Vbeta: %.3f\r\n", 
+						   status->theta, status->valpha, status->vbeta);
+			USART1_Printf("=====================\r\n\r\n");
+			
+			debug_time = current_time;
+		}
 	}
 }

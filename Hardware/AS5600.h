@@ -124,6 +124,20 @@ int16_t AS5600_GetAngleDiff(uint16_t angle1, uint16_t angle2);
  */
 int32_t AS5600_CalculateSpeed(uint16_t current_angle, uint32_t dt_us);
 
+/**
+ * @brief  获取累计圈数
+ * @param  无
+ * @retval 累计圈数（正值为正转，负值为反转）
+ */
+int32_t AS5600_GetTotalTurns(void);
+
+/**
+ * @brief  获取累计角度（浮点数）
+ * @param  无
+ * @retval 累计角度（圈数，浮点数）
+ */
+float AS5600_GetTotalAngle(void);
+
 // ==================== 状态检测函数 ====================
 /**
  * @brief  读取状态寄存器

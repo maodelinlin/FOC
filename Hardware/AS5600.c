@@ -4,6 +4,7 @@
 // ==================== 静态变量（用于速度计算） ====================
 static uint16_t last_angle = 0;      // 上次角度值
 static int32_t total_turns = 0;       // 总圈数（累计）
+static float total_angle = 0.0f;      // 累计角度（浮点数）
 
 // ==================== 基础函数 ====================
 
@@ -28,6 +29,7 @@ uint8_t AS5600_Init(void)
 	if(AS5600_GetRawAngle(&angle) == AS5600_OK)
 	{
 		last_angle = angle;
+		total_angle = (float)angle / AS5600_RESOLUTION;  // 初始化累计角度
 	}
 	
 	return AS5600_OK;
@@ -60,7 +62,7 @@ uint8_t AS5600_GetRawAngle(uint16_t *angle)
 		return AS5600_ERROR;
 	}
 	
-	*angle = ((uint16_t)data[0] << 8) | data[1];
+	*angle = ((uint16_t)data[0] << 8) | data[1];//这里把数据拼成16位
 	*angle &= 0x0FFF;  // 只保留低 12 位
 	
 	return AS5600_OK;
@@ -155,15 +157,11 @@ int32_t AS5600_CalculateSpeed(uint16_t current_angle, uint32_t dt_us)
 	// 计算角度差（处理跳变）
 	int16_t angle_diff = AS5600_GetAngleDiff(current_angle, last_angle);
 	
-	// 检测是否跨过零点（累计圈数）
-	if(angle_diff > (AS5600_RESOLUTION / 2))
-	{
-		total_turns--;  // 反向跨过零点
-	}
-	else if(angle_diff < -(AS5600_RESOLUTION / 2))
-	{
-		total_turns++;  // 正向跨过零点
-	}
+	// 累计角度（浮点数，精确累计）
+	total_angle += (float)angle_diff / AS5600_RESOLUTION;
+	
+	// 计算整数圈数
+	total_turns = (int32_t)(total_angle);
 	
 	// 更新上次角度
 	last_angle = current_angle;
@@ -183,6 +181,26 @@ int32_t AS5600_CalculateSpeed(uint16_t current_angle, uint32_t dt_us)
 	int32_t rpm = ((int32_t)angle_diff * 14648L) / (int32_t)dt_us;
 	
 	return rpm;
+}
+
+/**
+  * @brief  获取累计圈数
+  * @param  无
+  * @retval 累计圈数（正值为正转，负值为反转）
+  */
+int32_t AS5600_GetTotalTurns(void)
+{
+	return total_turns;
+}
+
+/**
+  * @brief  获取累计角度（浮点数）
+  * @param  无
+  * @retval 累计角度（圈数，浮点数）
+  */
+float AS5600_GetTotalAngle(void)
+{
+	return total_angle;
 }
 
 // ==================== 状态检测函数 ====================

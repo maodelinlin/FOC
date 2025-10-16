@@ -111,8 +111,8 @@
         <DllOption>
           <SimDllName>SARMCM3.DLL</SimDllName>
           <SimDllArguments> -REMAP</SimDllArguments>
-          <SimDlgDll>DCM.DLL</SimDlgDll>
-          <SimDlgDllArguments>-pCM3</SimDlgDllArguments>
+          <SimDlgDll>DARMSTM.DLL</SimDlgDll>
+          <SimDlgDllArguments>-pSTM32F103C8</SimDlgDllArguments>
           <TargetDllName>SARMCM3.DLL</TargetDllName>
           <TargetDllArguments></TargetDllArguments>
           <TargetDlgDll>TCM.DLL</TargetDlgDll>
@@ -697,6 +697,26 @@
               <FileName>AS5600.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Hardware\AS5600.h</FilePath>
+            </File>
+            <File>
+              <FileName>MS8313.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Hardware\MS8313.c</FilePath>
+            </File>
+            <File>
+              <FileName>MS8313.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Hardware\MS8313.h</FilePath>
+            </File>
+            <File>
+              <FileName>FOC.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Hardware\FOC.c</FilePath>
+            </File>
+            <File>
+              <FileName>FOC.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Hardware\FOC.h</FilePath>
             </File>
           </Files>
         </Group>

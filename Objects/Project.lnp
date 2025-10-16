@@ -29,6 +29,8 @@
 ".\objects\myi2c.o"
 ".\objects\usart.o"
 ".\objects\as5600.o"
+".\objects\ms8313.o"
+".\objects\foc.o"
 ".\objects\main.o"
 ".\objects\stm32f10x_it.o"
 --strict --scatter ".\Objects\Project.sct"
